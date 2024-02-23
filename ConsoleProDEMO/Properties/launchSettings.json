@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "ConsoleProDEMO": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}
