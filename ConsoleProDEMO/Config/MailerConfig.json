@@ -1,0 +1,10 @@
+{
+  "MailHtmlTemplatePath": "MailTemplates\\AlertMail.html",
+  "SmtpHost": "YOUR_SMTP_HOST",
+  "Sender": "AlertMail@YOUR_DOMAIN.de",
+  "SpamPreventionSubjectAge": 30,
+  "SpamPreventionStored": false,
+  "RecipientList": [
+    "SOMEBODY@SOMEDOMAIN.de"
+  ]
+}

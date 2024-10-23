@@ -1,0 +1,128 @@
+﻿<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <title>Email Alert</title>
+    <style>
+        body {
+            background-color: #f0f0f0;
+            font-family: Calibri, sans-serif;
+            color: #404040;
+        }
+
+        .center {
+            text-align: center;
+        }
+
+        td {
+            padding: 20px 50px 30px 50px;
+        }
+
+        small,
+        .small {
+            font-size: 12px;
+        }
+
+        a,
+        a:hover,
+        a:visited {
+            font-size: 12px;
+            color: #000000;
+            text-decoration: underline;
+        }
+
+        h1,
+        h2 {
+            font-size: 22px;
+            color: #404040;
+            font-weight: normal;
+        }
+
+        p {
+            color: #606060;
+            white-space: pre;
+        }
+
+        pre {
+            font-family: monospace;
+            white-space: pre;
+        }
+
+        .general {
+            background-color: white;
+        }
+
+        .Failure {
+            border-top: 20px #b02020 solid;
+            background-color: #db9c9b;
+        }
+
+        .Critical {
+            border-top: 20px #c05050 solid;
+            background-color: #e2afae;
+        }
+
+        .Warning {
+            border-top: 20px #c08040 solid;
+            background-color: #e0c4aa;
+        }
+
+        .Healthy {
+            border-top: 20px #80c080 solid;
+            background-color: #c6e2c3;
+        }
+
+        .Information {
+            border-top: 20px #50a0c0 solid;
+            background-color: #b5d5e2;
+        }
+
+        .Failure p {
+            color: #3d120f;
+            padding: 0;
+        }
+
+        .Critical p {
+            color: #3d211f;
+        }
+
+        .Warning p {
+            color: #44311c;
+        }
+
+        .Healthy p {
+            color: #364731;
+        }
+
+        .Information p {
+            color: #273c47;
+        }
+    </style>
+</head>
+<body style="margin: 0; padding: 0">
+    <table style="border: none" cellpadding="0" cellspacing="0" width="100%">
+        <tr>
+            <td style="padding: 15px 0">
+                <table style="border: none;" cellpadding="0" cellspacing="0" width="99%" class="content">
+                    <tr>
+                        <td class="general">
+                            <h1>Email Alert: {{ApplicationName}}</h1>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="{{NotificationType}}">
+                            <h1>Notification Level: {{NotificationType}}</h1>
+                            <p>MachineName: <b>{{MachineName}}</b> | AssemblyName: <b>{{AssemblyName}}</b> | AssemblyVersion: <b>{{AssemblyVersion}}</b><br />{{Message}}</p>
+                            <pre>{{MonospaceMessage}}</pre>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="general">
+                            <p><a href="https://www.otto-chemie.de/">Otto Chemie</a> | <a href="https://dev.azure.com/OttoChemie/Production">DevOps Production</a></p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
