@@ -1,5 +1,6 @@
 ﻿using ConsoleProDEMO.Services;
 using ConsoleProDEMO.Utilities;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog;
@@ -24,14 +25,23 @@ namespace ConsoleProDEMO
             Log.Information($"{ThisAssembly.AssemblyName} start");
 
             var host = Host.CreateDefaultBuilder()
+                .UseSerilog()
+                .ConfigureAppConfiguration((hostingContext, configBuilder) =>
+                {
+                    configBuilder.Sources.Clear();
+                    configBuilder.AddConfiguration(appConfig);
+                })
                 .ConfigureServices((context, services) =>
                 {
+                    // DI registration here ...
                     services.AddTransient<ISomeService, SomeService>();
+
+                    // Lib registration extensions here ...
                 })
-                .UseSerilog()
                 .Build();
 
-            var service = ActivatorUtilities.GetServiceOrCreateInstance<SomeService>(host.Services);
+            //var service = ActivatorUtilities.GetServiceOrCreateInstance<SomeService>(host.Services);
+            var service = host.Services.GetRequiredService<ISomeService>();
 
             try
             {
