@@ -3,84 +3,98 @@ using System.Reflection;
 
 namespace ConsoleProDEMO.Utilities
 {
-    public class AppSettingsHelper
+    public static class AppSettingsHelper
     {
-        public const string AspNetVarVarName = "ASPNETCORE_ENVIRONMENT";
-        public const string DotNetEnvVarName = "DOTNET_ENVIRONMENT";
-        public const string ConnectionStringsSectionName = "ConnectionStrings";
-        public const string AppSettingsSectionName = "AppSettings";
+        private const string AspNetVarVarName = "ASPNETCORE_ENVIRONMENT";
+        private const string DotNetEnvVarName = "DOTNET_ENVIRONMENT";
+        private const string AppSettingsSectionName = "AppSettings";
+
+        private static IConfiguration? _configuration;
 
         /// <summary>
-        /// Switches the optional environment variable name for adding the appsetting.<ENVIRONMENT>.json.
+        /// Gets the active environment variable name used for determining the environment.
         /// </summary>
         private static string GetEnvVarName()
         {
-            return Environment.GetEnvironmentVariable(AspNetVarVarName) ??
-                   Environment.GetEnvironmentVariable(DotNetEnvVarName) ??
-                   string.Empty;
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(AspNetVarVarName)))
+                return AspNetVarVarName;
+
+            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable(DotNetEnvVarName)))
+                return DotNetEnvVarName;
+
+            return string.Empty;
         }
 
         /// <summary>
-        /// Gets the value from the AppSettings section by type T.
+        /// Builds and caches the configuration. Reloads only if explicitly reset.
         /// </summary>
-        /// <typeparam name="T">expected type of the setting, cannot be null</typeparam>
-        /// <param name="Key">key name of the setting</param>
-        /// <returns>typed settings value, or default if not found</returns>
-        public static T GetValue<T>(string Key) where T : notnull
+        public static IConfiguration GetConfiguration()
         {
-            if (string.IsNullOrWhiteSpace(Key))
-                throw new ArgumentNullException(nameof(Key));
+            if (_configuration != null)
+                return _configuration;
 
-            Type type = typeof(T).IsValueType ? typeof(T) : typeof(string);
-
-            IConfiguration configuration = GetAppConfigBuilder().Build();
-            var result = configuration
-                .GetSection(AppSettingsSectionName)
-                .GetValue(type, Key);
-
-            if (result == null)
-                return default!;
-
-            return (T)result;
-        }
-
-        /// <summary>
-        /// Gets the connectionString by Key.
-        /// </summary>
-        /// <param name="Key">Key name of the connectionString</param>
-        /// <returns>connectionString</returns>
-        public static string GetConnectionString(string Key)
-        {
-            if (string.IsNullOrWhiteSpace(Key))
-                throw new ArgumentNullException(nameof(Key));
-
-            IConfiguration configuration = GetAppConfigBuilder().Build();
-            var result = configuration
-                .GetSection(ConnectionStringsSectionName)
-                .GetValue<string>(Key) ?? string.Empty;
-
-            return result;
-        }
-
-        /// <summary>
-        /// This methods is usually in the Program.cs or Startup.cs.
-        /// If you locate this here you can access the AppSettings from anywhere else as well.
-        /// </summary>
-        /// <returns>configurationBuilder object</returns>
-        public static IConfigurationBuilder GetAppConfigBuilder()
-        {
             var envVarName = GetEnvVarName();
-            var basePath = Path.GetDirectoryName(Assembly.GetEntryAssembly()?.Location);
-            if (string.IsNullOrEmpty(basePath))
-                throw new InvalidOperationException("Base path of the entry assembly could not be determined.");
+            var environment = string.IsNullOrWhiteSpace(envVarName)
+                ? null
+                : Environment.GetEnvironmentVariable(envVarName);
 
-            var appConfigBuilder = new ConfigurationBuilder()
-                .SetBasePath(basePath)
-                .AddJsonFile("appsettings.json")
-                .AddJsonFile($"appsettings.{Environment.GetEnvironmentVariable(envVarName)}.json", optional: true, reloadOnChange: false)
-                .AddEnvironmentVariables();
+            var builder = new ConfigurationBuilder()
+                .SetBasePath(Directory.GetCurrentDirectory())
+                .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
 
-            return appConfigBuilder;
+            if (!string.IsNullOrEmpty(environment))
+                builder.AddJsonFile($"appsettings.{environment}.json", optional: true, reloadOnChange: true);
+
+            builder.AddUserSecrets<Program>();
+            builder.AddEnvironmentVariables();
+            _configuration = builder.Build();
+
+            return _configuration;
+        }
+
+        /// <summary>
+        /// Retrieves a value of type T from the "AppSettings" configuration section by key.
+        /// Returns the specified default value if the key does not exist or the section is missing.
+        /// </summary>
+        /// <typeparam name="T">The expected type of the configuration value.</typeparam>
+        /// <param name="key">The key name within the AppSettings section.</param>
+        /// <param name="defaultValue">The default value to return if the key is not found.</param>
+        /// <returns>The configuration value associated with the key, or the default value.</returns>
+        public static T? GetValue<T>(string key, T? defaultValue = default)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return defaultValue;
+
+            var section = GetConfiguration().GetSection(AppSettingsSectionName);
+
+            if (!section.Exists())
+                return defaultValue;
+
+            var value = section.GetValue<T>(key);
+
+            return value != null ? value : defaultValue;
+        }
+
+        /// <summary>
+        /// Gets a connection string by key.
+        /// </summary>
+        public static string GetConnectionString(string key)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                throw new ArgumentNullException(nameof(key));
+
+            var connStr = GetConfiguration()
+                .GetConnectionString(key);
+
+            return connStr ?? string.Empty;
+        }
+
+        /// <summary>
+        /// Manually resets the cached configuration (e.g., for unit testing or reload).
+        /// </summary>
+        public static void ResetConfiguration()
+        {
+            _configuration = null;
         }
     }
 }

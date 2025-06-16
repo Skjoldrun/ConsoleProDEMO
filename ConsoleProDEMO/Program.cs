@@ -9,22 +9,48 @@ namespace ConsoleProDEMO
 {
     internal class Program
     {
-        private static bool _keepRunning = true;
-
         private static async Task Main(string[] args)
         {
-            Console.CancelKeyPress += delegate (object? sender, ConsoleCancelEventArgs e)
+            using var cts = new CancellationTokenSource();
+            Console.CancelKeyPress += (sender, e) =>
             {
                 e.Cancel = true;
-                _keepRunning = false;
+                cts.Cancel();
             };
 
-            var appConfig = AppSettingsHelper.GetAppConfigBuilder().Build();
+            var appConfig = AppSettingsHelper.GetConfiguration();
             Log.Logger = LogInitializer.CreateLogger(appConfig);
 
             Log.Information($"{ThisAssembly.AssemblyName} start");
+            var appHost = BuildHost(args, appConfig);
 
-            var host = Host.CreateDefaultBuilder()
+            // Call scoped service(s) here ...
+            using var scope = appHost.Services.CreateScope();
+            var service = scope.ServiceProvider.GetRequiredService<ISomeService>();
+
+            try
+            {
+                await service.Run();
+
+                await WaitForExitAsync(cts.Token);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, $"Exception: {ex.Message}");
+            }
+
+            Log.Information($"{ThisAssembly.AssemblyName}  stop");
+            Log.CloseAndFlush();
+        }
+
+        /// <summary>
+        /// Configures the host with registering the interfaces and class types.
+        /// Sets the Serilog logger as logging provider for typed ILogger injections.
+        /// </summary>
+        /// <returns>configured host to access its services</returns>
+        private static IHost BuildHost(string[] args, IConfiguration appConfig)
+        {
+            var host = Host.CreateDefaultBuilder(args)
                 .UseSerilog()
                 .ConfigureAppConfiguration((hostingContext, configBuilder) =>
                 {
@@ -33,31 +59,37 @@ namespace ConsoleProDEMO
                 })
                 .ConfigureServices((context, services) =>
                 {
-                    // DI registration here ...
+                    // Add DI registration here ...
                     services.AddTransient<ISomeService, SomeService>();
 
                     // Lib registration extensions here ...
                 })
                 .Build();
 
-            //var service = ActivatorUtilities.GetServiceOrCreateInstance<SomeService>(host.Services);
-            var service = host.Services.GetRequiredService<ISomeService>();
+            return host;
+        }
+
+        /// <summary>
+        /// Asynchronously waits for a cancellation request from the user (e.g., Ctrl+C).
+        /// Keeps the application alive without blocking threads.
+        /// </summary>
+        /// <param name="cancellationToken">Token triggered by Console.CancelKeyPress.</param>
+        /// <returns>A task that completes when cancellation is requested.</returns>
+        private static async Task WaitForExitAsync(CancellationToken cancellationToken)
+        {
+            await Console.Out.WriteLineAsync("Press [Ctrl]+[C] to exit the application ...");
 
             try
             {
-                await service.Run();
-
-                await Console.Out.WriteLineAsync("Press [Ctrl]+[C] to exit the application ...");
-                while (_keepRunning)
-                    Thread.Sleep(1000);
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    await Task.Delay(1000, cancellationToken);
+                }
             }
-            catch (Exception ex)
+            catch (TaskCanceledException)
             {
-                Log.Error(ex, $"Exception: {ex.Message}");
+                Log.Information("Application cancellation requested – shutting down cleanly.");
             }
-
-            Log.Information($"{ThisAssembly.AssemblyName} stop");
-            Log.CloseAndFlush();
         }
     }
 }
